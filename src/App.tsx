@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createDefaultInputs } from './config/defaults';
 import { findMachine } from './config/machines';
 import { runSimulation } from './engine';
@@ -45,7 +45,22 @@ export default function App() {
   const [leadCount, setLeadCount] = useState(() => listLeads().length);
 
   useEffect(() => saveDraft(inputs), [inputs]);
-  useEffect(() => window.scrollTo({ top: 0, behavior: 'smooth' }), [step, view]);
+  // Retour en haut à chaque changement d'étape. scrollIntoView remonte aussi les conteneurs parents
+  // (utile quand l'application est intégrée dans une page ou un visualiseur).
+  const topRef = useRef<HTMLDivElement>(null);
+  const firstRender = useRef(true);
+  useEffect(() => {
+    if (firstRender.current) {
+      firstRender.current = false;
+      return;
+    }
+    try {
+      topRef.current?.scrollIntoView({ block: 'start' });
+      window.scrollTo(0, 0);
+    } catch {
+      /* défilement indisponible : ignoré */
+    }
+  }, [step, view]);
 
   const update = useCallback((fn: (d: SimulationInputs) => SimulationInputs) => setInputs((prev) => fn(prev)), []);
   const machine = findMachine(inputs.machineId);
@@ -60,6 +75,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-white">
+      <div ref={topRef} aria-hidden />
       <header className="no-print sticky top-[env(safe-area-inset-top,0px)] z-40 border-b border-slate-200 bg-white/95 backdrop-blur">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
           <div className="flex min-w-0 items-center gap-4">

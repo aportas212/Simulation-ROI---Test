@@ -12,10 +12,17 @@ export interface Formatters {
 export function createFormatters(locale: string): Formatters {
   const cache = new Map<string, Intl.NumberFormat>();
   const nf = (opts: Intl.NumberFormatOptions) => {
-    const key = JSON.stringify(opts);
+    // minimumFractionDigits explicite : certains navigateurs plus anciens (Safari, Chrome < 106)
+    // lèvent une RangeError si maximumFractionDigits est inférieur au minimum par défaut (2 pour l'euro).
+    const full: Intl.NumberFormatOptions = { minimumFractionDigits: 0, ...opts };
+    const key = JSON.stringify(full);
     let f = cache.get(key);
     if (!f) {
-      f = new Intl.NumberFormat(locale, opts);
+      try {
+        f = new Intl.NumberFormat(locale, full);
+      } catch {
+        f = new Intl.NumberFormat(undefined, { maximumFractionDigits: full.maximumFractionDigits ?? 2 });
+      }
       cache.set(key, f);
     }
     return f;

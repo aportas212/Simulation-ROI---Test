@@ -61,6 +61,14 @@ export function saveDraft(inputs: SimulationInputs): void {
   write(KEYS.draft, inputs);
 }
 
+export function clearDraft(): void {
+  try {
+    window.localStorage.removeItem(KEYS.draft);
+  } catch {
+    /* stockage indisponible : ignoré */
+  }
+}
+
 export function listSimulations(): SavedSimulation[] {
   return read<SavedSimulation[]>(KEYS.simulations, []);
 }

@@ -17,7 +17,7 @@ export function parseNumber(raw: string): number | null {
 
 function display(value: number | null, locale: string): string {
   if (value === null || !Number.isFinite(value)) return '';
-  return new Intl.NumberFormat(locale, { maximumFractionDigits: 3, useGrouping: true }).format(value);
+  return new Intl.NumberFormat(locale, { minimumFractionDigits: 0, maximumFractionDigits: 3, useGrouping: true }).format(value);
 }
 
 interface NumberInputProps {
