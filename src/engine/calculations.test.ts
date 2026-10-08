@@ -47,6 +47,7 @@ function referenceInputs(): SimulationInputs {
     machineId: 'test',
     machineQuantity: 1,
     machineCapex: null,
+    machineSelection: 'manual',
   };
 }
 

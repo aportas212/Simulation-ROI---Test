@@ -136,6 +136,8 @@ export interface SimulationInputs {
   machineQuantity: number;
   /** Investissement saisi (€ HT par machine) : remplace le prix catalogue ou complète un prix sur devis. */
   machineCapex: number | null;
+  /** 'auto' : l'outil retient la solution recommandée ; 'manual' : le commercial a choisi une autre machine. */
+  machineSelection: 'auto' | 'manual';
 }
 
 export type ScenarioKey = 'A' | 'B' | 'C';

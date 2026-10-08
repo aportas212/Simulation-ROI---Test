@@ -1,5 +1,5 @@
 import type { ClientInfo, PostInput, SimulationInputs } from '../engine/types';
-import { MACHINES } from './machines';
+import { MACHINES, PACKING_POST } from './machines';
 
 /** Postes par défaut (tableau de l'étape 3). Productivités manuelles par opérateur et par heure. */
 export const DEFAULT_POSTS: PostInput[] = [
@@ -8,6 +8,7 @@ export const DEFAULT_POSTS: PostInput[] = [
   { id: 'fragile_pick_pack', label: 'Pick & pack fragile / gros volume', unit: 'pieces', flow: 'fragile', productivity: 60, currentHeadcount: null },
   { id: 'specific_pick_pack', label: 'Pick & pack produits spécifiques', unit: 'pieces', flow: 'specific', productivity: 250, currentHeadcount: null },
   { id: 'consolidation', label: 'Consolidation et palettisation', unit: 'bins', flow: 'bins', productivity: 150, currentHeadcount: null },
+  { ...PACKING_POST },
   { id: 'management', label: 'Encadrement', unit: 'managers', flow: 'management', productivity: 1, currentHeadcount: null },
 ];
 
@@ -40,5 +41,6 @@ export function createDefaultInputs(): SimulationInputs {
     machineId: MACHINES[0].id,
     machineQuantity: 1,
     machineCapex: null,
+    machineSelection: 'auto',
   };
 }

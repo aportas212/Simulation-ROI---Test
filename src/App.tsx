@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { EMPTY_CLIENT, createDefaultInputs } from './config/defaults';
-import { findMachine } from './config/machines';
-import { runSimulation } from './engine';
+import { MACHINES, findMachine } from './config/machines';
+import { evaluateCandidates, recommendedCandidate, runSimulation } from './engine';
 import type { SimulationInputs } from './engine/types';
 import { useI18n } from './i18n';
 import { listLeads, loadDraft, saveDraft } from './lib/storage';
@@ -34,6 +34,7 @@ function hydrate(stored: SimulationInputs | null): SimulationInputs {
     machineId: findMachine(stored.machineId ?? d.machineId).id,
     machineQuantity: stored.machineQuantity ?? d.machineQuantity,
     machineCapex: stored.machineCapex ?? null,
+    machineSelection: stored.machineSelection ?? 'auto',
   };
 }
 
@@ -68,8 +69,20 @@ export default function App() {
   }, [step, view]);
 
   const update = useCallback((fn: (d: SimulationInputs) => SimulationInputs) => setInputs((prev) => fn(prev)), []);
-  const machine = findMachine(inputs.machineId);
-  const result = useMemo(() => runSimulation(inputs, machine), [inputs, machine]);
+  // Recommandation : toutes les machines du catalogue sont simulées sur les données du client
+  const candidates = useMemo(() => evaluateCandidates(inputs, MACHINES), [inputs]);
+  // Sans solution rentable, on retient la mieux classée du comparatif
+  const autoPick = recommendedCandidate(candidates) ?? candidates[0] ?? null;
+  // En mode automatique, la solution retenue est la recommandation (machine + nombre de machines)
+  const effectiveInputs = useMemo<SimulationInputs>(
+    () =>
+      inputs.machineSelection === 'auto' && autoPick
+        ? { ...inputs, machineId: autoPick.machine.id, machineQuantity: autoPick.quantity, machineCapex: null }
+        : inputs,
+    [inputs, autoPick],
+  );
+  const machine = findMachine(effectiveInputs.machineId);
+  const result = useMemo(() => runSimulation(effectiveInputs, machine), [effectiveInputs, machine]);
 
   const steps = [t('steps.contact'), t('steps.volumes'), t('steps.flows'), t('steps.staffing'), t('steps.machine')];
   const DataStep = step > 0 ? DATA_STEPS[step - 1] : null;
@@ -125,7 +138,7 @@ export default function App() {
             <div className={`grid gap-8 ${step > 0 ? 'lg:grid-cols-[minmax(0,1fr)_280px]' : 'max-w-3xl'}`}>
               <div className="min-w-0">
                 {DataStep ? (
-                  <DataStep inputs={inputs} update={update} result={result} />
+                  <DataStep inputs={effectiveInputs} update={update} result={result} candidates={candidates} />
                 ) : (
                   <StepContact inputs={inputs} update={update} result={result} showErrors={showContactErrors} />
                 )}
@@ -158,7 +171,7 @@ export default function App() {
           </>
         ) : (
           <ResultsPage
-            inputs={inputs}
+            inputs={effectiveInputs}
             result={result}
             onEdit={() => setView('form')}
             onLeadSaved={() => setLeadCount(listLeads().length)}

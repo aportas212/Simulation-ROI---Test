@@ -5,7 +5,9 @@ Application web de simulation de retour sur investissement pour les solutions in
 utilisable en autonomie ou sur tablette par un commercial en rendez-vous.
 
 Le client indique d'abord ses coordonnées (société, nom, fonction), puis ses données d'exploitation
-en 4 étapes, et obtient immédiatement :
+en 3 étapes. L'outil simule alors toutes les machines du catalogue sur ses données et **recommande
+automatiquement la solution ISITEC** la plus rentable (le commercial peut en choisir une autre).
+Le client obtient immédiatement :
 
 - son coût actuel de main-d'œuvre,
 - ce coût projeté à volume futur s'il garde son process manuel,
@@ -58,6 +60,18 @@ src/
 ├── lib/                    Formatage des nombres, stockage local, export CSV
 └── components/             Formulaire en 4 étapes, page résultats, graphiques
 ```
+
+## Recommandation automatique (`src/engine/recommend.ts`)
+
+Pour chaque machine du catalogue, l'outil :
+1. vérifie qu'elle agit sur un poste du client ayant de l'activité (sinon « Non adaptée ») ;
+2. calcule le nombre de machines nécessaire (débit de pointe ÷ cadence, sorties nécessaires ÷ sorties) ;
+3. simule les 3 scénarios et le ROI au prix catalogue.
+
+La solution recommandée est, parmi les machines chiffrées, celle qui rapporte le plus sur l'horizon
+(gain cumulé positif) ; à défaut, la solution « sur devis » qui économise le plus par an. Un comparatif
+de toutes les solutions est affiché, et toute modification manuelle (autre machine, investissement,
+nombre de machines) peut être annulée par « Revenir à la recommandation ».
 
 ## Modifier le catalogue des machines (`src/config/machines.ts`)
 

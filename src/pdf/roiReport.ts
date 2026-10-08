@@ -198,7 +198,7 @@ export function buildRoiReport({ inputs, result, t, f, date = new Date(), images
     sx += 34;
   }
   const solW = PAGE_W - M - sx;
-  p.label(t('pdf.solution'), sx, y);
+  p.label(t(inputs.machineSelection === 'auto' ? 'pdf.solutionRecommended' : 'pdf.solution'), sx, y);
   p.font(11, 'bold', C.navy);
   const nameH = p.para(machineLabel, sx, y + 6.5, solW, 4.6, 2);
   p.font(7.6, 'normal', C.muted);
