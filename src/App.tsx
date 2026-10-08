@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { createDefaultInputs } from './config/defaults';
+import { EMPTY_CLIENT, createDefaultInputs } from './config/defaults';
 import { findMachine } from './config/machines';
 import { runSimulation } from './engine';
 import type { SimulationInputs } from './engine/types';
@@ -10,6 +10,7 @@ import { LivePreview } from './components/LivePreview';
 import { LeadsModal, SavedSimulationsModal } from './components/SavedPanel';
 import { Stepper } from './components/Stepper';
 import { Logo, Modal } from './components/ui';
+import { StepContact, validateClient } from './components/form/StepContact';
 import { StepFlows } from './components/form/StepFlows';
 import { StepMachine } from './components/form/StepMachine';
 import { StepStaffing } from './components/form/StepStaffing';
@@ -22,6 +23,7 @@ function hydrate(stored: SimulationInputs | null): SimulationInputs {
   const d = createDefaultInputs();
   if (!stored || typeof stored !== 'object') return d;
   return {
+    client: { ...EMPTY_CLIENT, ...stored.client },
     volumes: { ...d.volumes, ...stored.volumes, mix: { ...d.volumes.mix, ...stored.volumes?.mix } },
     flows: { ...d.flows, ...stored.flows },
     staffing: {
@@ -34,7 +36,8 @@ function hydrate(stored: SimulationInputs | null): SimulationInputs {
   };
 }
 
-const STEP_COMPONENTS: ((p: StepProps) => JSX.Element)[] = [StepVolumes, StepFlows, StepStaffing, StepMachine];
+// L'étape 0 (coordonnées) est rendue à part : elle reçoit l'affichage des erreurs de saisie.
+const DATA_STEPS: ((p: StepProps) => JSX.Element)[] = [StepVolumes, StepFlows, StepStaffing, StepMachine];
 
 export default function App() {
   const { t } = useI18n();
@@ -43,6 +46,7 @@ export default function App() {
   const [view, setView] = useState<'form' | 'results'>('form');
   const [modal, setModal] = useState<'saved' | 'leads' | 'confirmNew' | null>(null);
   const [leadCount, setLeadCount] = useState(() => listLeads().length);
+  const [showContactErrors, setShowContactErrors] = useState(false);
 
   useEffect(() => saveDraft(inputs), [inputs]);
   // Retour en haut à chaque changement d'étape. scrollIntoView remonte aussi les conteneurs parents
@@ -66,12 +70,21 @@ export default function App() {
   const machine = findMachine(inputs.machineId);
   const result = useMemo(() => runSimulation(inputs, machine), [inputs, machine]);
 
-  const steps = [t('steps.volumes'), t('steps.flows'), t('steps.staffing'), t('steps.machine')];
-  const StepComponent = STEP_COMPONENTS[step];
+  const steps = [t('steps.contact'), t('steps.volumes'), t('steps.flows'), t('steps.staffing'), t('steps.machine')];
+  const DataStep = step > 0 ? DATA_STEPS[step - 1] : null;
   const isLast = step === steps.length - 1;
-  // Contrôles affichés sous l'étape concernée (ceux de la machine sont dans l'étape 4)
+  // Contrôles affichés sous l'étape concernée (ceux de la machine sont dans l'étape « Solution »)
   const stepAlerts =
-    step === 0 ? result.alerts.filter((a) => a.code === 'categoryFlowMismatch' || a.code === 'noVolume') : [];
+    step === 1 ? result.alerts.filter((a) => a.code === 'categoryFlowMismatch' || a.code === 'noVolume') : [];
+
+  /** Change d'étape ; on ne quitte la page coordonnées que si elle est complète. */
+  const goTo = (target: number) => {
+    if (step === 0 && target > 0 && Object.keys(validateClient(inputs.client)).length > 0) {
+      setShowContactErrors(true);
+      return;
+    }
+    setStep(target);
+  };
 
   return (
     <div className="min-h-screen bg-white">
@@ -106,11 +119,15 @@ export default function App() {
         {view === 'form' ? (
           <>
             <div className="mb-8">
-              <Stepper steps={steps} current={step} onSelect={setStep} />
+              <Stepper steps={steps} current={step} onSelect={goTo} />
             </div>
-            <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_280px]">
+            <div className={`grid gap-8 ${step > 0 ? 'lg:grid-cols-[minmax(0,1fr)_280px]' : 'max-w-3xl'}`}>
               <div className="min-w-0">
-                <StepComponent inputs={inputs} update={update} result={result} />
+                {DataStep ? (
+                  <DataStep inputs={inputs} update={update} result={result} />
+                ) : (
+                  <StepContact inputs={inputs} update={update} result={result} showErrors={showContactErrors} />
+                )}
                 {stepAlerts.length > 0 && (
                   <div className="mt-6">
                     <Alerts alerts={stepAlerts} />
@@ -125,15 +142,17 @@ export default function App() {
                       {t('nav.results')} →
                     </button>
                   ) : (
-                    <button className="btn-primary px-6" onClick={() => setStep((s) => s + 1)}>
+                    <button className="btn-primary px-6" onClick={() => goTo(step + 1)}>
                       {t('nav.next')} →
                     </button>
                   )}
                 </div>
               </div>
-              <div className="hidden lg:block">
-                <LivePreview result={result} />
-              </div>
+              {step > 0 && (
+                <div className="hidden lg:block">
+                  <LivePreview result={result} />
+                </div>
+              )}
             </div>
           </>
         ) : (
@@ -168,6 +187,7 @@ export default function App() {
               className="btn-primary"
               onClick={() => {
                 setInputs(createDefaultInputs());
+                setShowContactErrors(false);
                 setStep(0);
                 setView('form');
                 setModal(null);

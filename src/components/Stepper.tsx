@@ -12,7 +12,7 @@ export function Stepper({ steps, current, onSelect }: { steps: string[]; current
       <div className="h-1.5 overflow-hidden rounded-full bg-slate-100" role="progressbar" aria-valuenow={current + 1} aria-valuemin={1} aria-valuemax={steps.length}>
         <div className="h-full rounded-full bg-accent transition-all duration-300" style={{ width: `${pct}%` }} />
       </div>
-      <ol className="mt-4 grid grid-cols-4 gap-2">
+      <ol className="mt-4 grid gap-2" style={{ gridTemplateColumns: `repeat(${steps.length}, minmax(0, 1fr))` }}>
         {steps.map((label, i) => {
           const state = i < current ? 'done' : i === current ? 'current' : 'todo';
           return (

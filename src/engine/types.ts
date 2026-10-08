@@ -96,7 +96,20 @@ export interface Machine {
   opexYear: number;
 }
 
+export type ClientSector = '' | 'retail' | 'ecommerce' | '3pl' | 'industry' | 'other';
+
+/** Coordonnées du client (page 1). Non utilisées par le moteur : servent à personnaliser l'étude et le PDF. */
+export interface ClientInfo {
+  company: string;
+  contactName: string;
+  role: string;
+  email: string;
+  phone: string;
+  sector: ClientSector;
+}
+
 export interface SimulationInputs {
+  client: ClientInfo;
   volumes: VolumeInputs;
   flows: FlowInputs;
   staffing: StaffingInputs;

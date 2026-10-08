@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import type { SimulationInputs } from '../engine/types';
 import { useI18n } from '../i18n';
-import { deleteSimulation, downloadFile, leadsToCsv, listLeads, listSimulations, saveSimulation, type SavedSimulation } from '../lib/storage';
+import { saveFile } from '../lib/download';
+import { deleteSimulation, leadsToCsv, listLeads, listSimulations, saveSimulation, type SavedSimulation } from '../lib/storage';
 import { Modal, useFormatters } from './ui';
 
 export function SavedSimulationsModal({
@@ -94,7 +95,7 @@ export function LeadsModal({ onClose }: { onClose: () => void }) {
           </div>
           <button
             className="btn-primary mt-4"
-            onClick={() => downloadFile(`isitec-demandes-${new Date().toISOString().slice(0, 10)}.csv`, leadsToCsv(leads))}
+            onClick={() => void saveFile(`isitec-demandes-${new Date().toISOString().slice(0, 10)}.csv`, leadsToCsv(leads), 'text/csv;charset=utf-8')}
           >
             ⤓ {t('lead.exportCsv')}
           </button>

@@ -4,7 +4,8 @@ Application web de simulation de retour sur investissement pour les solutions in
 (tri, préparation de commandes, packing). Destinée aux clients retail, e-commerce et 3PL, elle est
 utilisable en autonomie ou sur tablette par un commercial en rendez-vous.
 
-Le client saisit ses données d'exploitation en 4 étapes et obtient immédiatement :
+Le client indique d'abord ses coordonnées (société, nom, fonction), puis ses données d'exploitation
+en 4 étapes, et obtient immédiatement :
 
 - son coût actuel de main-d'œuvre,
 - ce coût projeté à volume futur s'il garde son process manuel,
@@ -15,7 +16,7 @@ Le client saisit ses données d'exploitation en 4 étapes et obtient immédiatem
 ## Stack
 
 - Vite + React 18 + TypeScript + Tailwind CSS
-- Recharts (graphiques), react-to-print (export PDF A4)
+- Recharts (graphiques), jsPDF (synthèse PDF A4 générée comme un vrai fichier, sans passer par l'impression)
 - Vitest (tests unitaires du moteur)
 - Aucun backend : simulations, brouillon et demandes d'étude sont stockés en `localStorage`
 
@@ -50,7 +51,9 @@ src/
 │   └── calculations.test.ts  Tests (dont le cas de test obligatoire)
 ├── config/
 │   ├── machines.ts         ⚙️  Catalogue des machines ISITEC (à renseigner)
+│   ├── brand.ts            ⚙️  Couleurs et coordonnées ISITEC utilisées dans le PDF (à vérifier)
 │   └── defaults.ts         Valeurs par défaut du formulaire et des postes
+├── pdf/roiReport.ts        Synthèse PDF A4 (2 pages) aux couleurs ISITEC
 ├── i18n/                   Traductions (fr complet ; en / es prêts à compléter)
 ├── lib/                    Formatage des nombres, stockage local, export CSV
 └── components/             Formulaire en 4 étapes, page résultats, graphiques
@@ -97,6 +100,14 @@ conserve la productivité manuelle du client.
 > `À RENSEIGNER PAR ISITEC` et doivent être remplacées par les données réelles.
 
 Après modification, lancez `npm test && npm run build` pour vérifier que tout compile.
+
+## Synthèse PDF
+
+À la fin du parcours, le bouton **Télécharger la synthèse PDF** produit un document A4 de 2 pages :
+page 1 avec le client, l'économie annuelle, les chiffres clés, les coûts des 3 scénarios, le coût cumulé
+avec le point de bascule et les apports de la solution ; page 2 avec le détail par poste, les données
+saisies, les prochaines étapes et le contact ISITEC. Couleurs, adresse, site, email et téléphone se
+règlent dans `src/config/brand.ts`.
 
 ## Autres réglages
 

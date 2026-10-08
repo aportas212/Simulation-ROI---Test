@@ -1,4 +1,4 @@
-import type { PostInput, SimulationInputs } from '../engine/types';
+import type { ClientInfo, PostInput, SimulationInputs } from '../engine/types';
 import { MACHINES } from './machines';
 
 /** Postes par défaut (tableau de l'étape 3). Productivités manuelles par opérateur et par heure. */
@@ -11,8 +11,11 @@ export const DEFAULT_POSTS: PostInput[] = [
   { id: 'management', label: 'Encadrement', unit: 'managers', flow: 'management', productivity: 1, currentHeadcount: null },
 ];
 
+export const EMPTY_CLIENT: ClientInfo = { company: '', contactName: '', role: '', email: '', phone: '', sector: '' };
+
 export function createDefaultInputs(): SimulationInputs {
   return {
+    client: { ...EMPTY_CLIENT },
     volumes: {
       ordersPerDayCurrent: 3000,
       ordersPerDayFuture: 4000,

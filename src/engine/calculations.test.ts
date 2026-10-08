@@ -32,6 +32,7 @@ function posts(overrides: Partial<Record<string, number>> = {}): PostInput[] {
 /** Cas de test obligatoire. */
 function referenceInputs(): SimulationInputs {
   return {
+    client: { company: '', contactName: '', role: '', email: '', phone: '', sector: '' },
     volumes: {
       ordersPerDayCurrent: 3000,
       ordersPerDayFuture: 3000,

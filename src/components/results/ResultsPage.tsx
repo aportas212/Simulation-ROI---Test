@@ -1,8 +1,8 @@
 import { useRef, useState, type ReactNode } from 'react';
-import { useReactToPrint } from 'react-to-print';
 import type { ScenarioKey, SimulationInputs, SimulationResult } from '../../engine/types';
 import { useI18n, type TFunction } from '../../i18n';
 import type { Formatters } from '../../lib/format';
+import type { SaveOutcome } from '../../lib/download';
 import { Alerts } from '../Alerts';
 import { Logo, useFormatters } from '../ui';
 import { ChartLegend, CumulativeChart, HeadcountChart, useScenarioColors } from './charts';
@@ -69,10 +69,29 @@ export function ResultsPage({ inputs, result, onEdit, onLeadSaved }: Props) {
   const horizon = horizonLabel(t, f, inputs.staffing.horizonYears);
   const today = f.date(new Date());
 
-  const handlePrint = useReactToPrint({
-    contentRef: printRef,
-    documentTitle: `ISITEC-simulation-ROI-${new Date().toISOString().slice(0, 10)}`,
-  });
+  const [pdfState, setPdfState] = useState<'idle' | 'busy' | SaveOutcome>('idle');
+  const handlePdf = async () => {
+    setPdfState('busy');
+    try {
+      // Chargé à la demande : jsPDF n'alourdit pas le premier affichage
+      const { downloadRoiReport } = await import('../../pdf/roiReport');
+      setPdfState(await downloadRoiReport({ inputs, result, t, f }));
+    } catch {
+      setPdfState('failed');
+    }
+  };
+  const pdfButton = (primary = false) => (
+    <button className={primary ? 'btn-primary px-6 text-base' : 'btn-secondary'} onClick={handlePdf} disabled={pdfState === 'busy'}>
+      ⤓ {t(pdfState === 'busy' ? 'results.pdf.generating' : 'results.pdf.download')}
+    </button>
+  );
+  const pdfStatus =
+    pdfState === 'saved' || pdfState === 'declined' || pdfState === 'failed' ? (
+      <p className={`text-sm font-medium ${pdfState === 'saved' ? 'text-emerald-700' : pdfState === 'failed' ? 'text-red-700' : 'text-slate-500'}`} role="status">
+        {pdfState === 'saved' ? '✓ ' : ''}
+        {t(`results.pdf.${pdfState}`)}
+      </p>
+    ) : null;
 
   const machineLabel = result.machineQuantity > 1 ? `${result.machineQuantity} × ${machine.name}` : machine.name;
 
@@ -89,6 +108,7 @@ export function ResultsPage({ inputs, result, onEdit, onLeadSaved }: Props) {
 
         <header className="flex flex-wrap items-end justify-between gap-4">
           <div>
+            {inputs.client.company && <p className="eyebrow mb-1">{t('results.preparedFor', { company: inputs.client.company })}</p>}
             <h2 className="text-3xl font-extrabold tracking-tight text-slate-900">{t('results.title')}</h2>
             <p className="mt-1 text-slate-600">
               {t('results.subtitle', { machine: machineLabel, orders: f.integer(inputs.volumes.ordersPerDayFuture), horizon })}
@@ -96,10 +116,11 @@ export function ResultsPage({ inputs, result, onEdit, onLeadSaved }: Props) {
           </div>
           <div className="no-print flex flex-wrap gap-2">
             <button className="btn-secondary" onClick={onEdit}>← {t('results.actions.edit')}</button>
-            <button className="btn-secondary" onClick={() => handlePrint()}>⤓ {t('results.actions.pdf')}</button>
+            {pdfButton()}
             <button className="btn-primary" onClick={() => setLeadOpen(true)}>{t('results.actions.study')}</button>
           </div>
         </header>
+        {pdfStatus && <div className="no-print -mt-3 flex justify-end">{pdfStatus}</div>}
 
         {/* 4 chiffres clés */}
         <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4 print:grid-cols-4 print:gap-2">
@@ -198,9 +219,31 @@ export function ResultsPage({ inputs, result, onEdit, onLeadSaved }: Props) {
         <p className="print-only text-[10px] text-slate-500">{t('results.print.disclaimer')}</p>
       </div>
 
-      <div className="no-print mt-8 flex flex-wrap justify-center gap-3 border-t border-slate-200 pt-6">
+      {/* Fin de parcours : téléchargement de la synthèse */}
+      <section className="no-print mt-8 overflow-hidden rounded-2xl bg-[#0B2545] text-white">
+        <div className="flex flex-col gap-6 p-6 sm:flex-row sm:items-center sm:justify-between sm:p-8">
+          <div className="max-w-xl">
+            <p className="text-xs font-semibold uppercase tracking-wider text-sky-200">
+              {inputs.client.company ? t('results.preparedFor', { company: inputs.client.company }) : t('pdf.docTitle')}
+            </p>
+            <h3 className="mt-1 text-2xl font-bold">{t('results.cta.title')}</h3>
+            <p className="mt-2 text-sm text-slate-300">{t('results.cta.text')}</p>
+          </div>
+          <div className="flex shrink-0 flex-col items-start gap-2 sm:items-end">
+            <button
+              className="btn bg-white px-6 text-base text-[#0B2545] hover:bg-sky-50"
+              onClick={handlePdf}
+              disabled={pdfState === 'busy'}
+            >
+              ⤓ {t(pdfState === 'busy' ? 'results.pdf.generating' : 'results.pdf.download')}
+            </button>
+            {pdfStatus && <div className="[&_p]:text-sky-100">{pdfStatus}</div>}
+          </div>
+        </div>
+      </section>
+
+      <div className="no-print mt-6 flex flex-wrap justify-center gap-3">
         <button className="btn-secondary" onClick={onEdit}>← {t('results.actions.edit')}</button>
-        <button className="btn-secondary" onClick={() => handlePrint()}>⤓ {t('results.actions.pdf')}</button>
         <button className="btn-primary" onClick={() => setLeadOpen(true)}>{t('results.actions.study')}</button>
       </div>
 

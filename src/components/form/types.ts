@@ -7,3 +7,8 @@ export interface StepProps {
   update: Updater;
   result: SimulationResult;
 }
+
+export interface ContactStepProps extends StepProps {
+  /** Affiche les erreurs de saisie (après une tentative de passage à l'étape suivante). */
+  showErrors: boolean;
+}

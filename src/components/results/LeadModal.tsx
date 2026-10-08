@@ -19,7 +19,13 @@ export function LeadModal({
   onSaved: () => void;
 }) {
   const { t } = useI18n();
-  const [values, setValues] = useState<Record<Field, string>>({ name: '', company: '', email: '', phone: '', message: '' });
+  const [values, setValues] = useState<Record<Field, string>>({
+    name: inputs.client.contactName,
+    company: inputs.client.company,
+    email: inputs.client.email,
+    phone: inputs.client.phone,
+    message: '',
+  });
   const [errors, setErrors] = useState<Partial<Record<Field, string>>>({});
   const [done, setDone] = useState(false);
 
