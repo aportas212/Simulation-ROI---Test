@@ -4,6 +4,8 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig({
   plugins: [react()],
+  // Chemins relatifs : le site fonctionne aussi dans un sous-dossier (GitHub Pages, intranet…)
+  base: './',
   build: {
     rollupOptions: {
       output: { manualChunks: { charts: ['recharts'] } },

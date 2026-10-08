@@ -33,6 +33,13 @@ npm run preview    # sert la version de production localement
 
 Le dossier `dist/` est un site statique : il peut être déposé sur n'importe quel hébergement web.
 
+### Mise en ligne automatique (GitHub Pages)
+
+Le workflow `.github/workflows/deploy-pages.yml` teste, construit et publie l'application à chaque push.
+Pour l'activer une fois : **Settings → Pages → Source : « GitHub Actions »**. L'adresse du site apparaît
+ensuite dans Settings → Pages (forme `https://<compte>.github.io/<dépôt>/`).
+Sur un compte GitHub gratuit, GitHub Pages exige un dépôt public ; le site publié est public dans tous les cas.
+
 ## Organisation du code
 
 ```
