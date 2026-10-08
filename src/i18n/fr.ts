@@ -93,6 +93,7 @@ export const fr = {
   'unit.pieces': 'pièces',
   'unit.bins': 'bacs',
   'unit.managers': 'managers',
+  'unit.orders': 'commandes',
   'unit.years': 'ans',
   'unit.eurPerYear': '€/an',
   'unit.perHour': '/h',
@@ -101,6 +102,7 @@ export const fr = {
   'flow.fragile': 'Fragile / gros volume',
   'flow.specific': 'Produits spécifiques',
   'flow.bins': 'Bacs',
+  'flow.orders': 'Commandes',
   'flow.management': 'Encadrement',
 
   'machine.title': 'Choisissez votre solution ISITEC',
@@ -117,13 +119,37 @@ export const fr = {
   'machine.modifies': 'Postes allégés',
   'machine.removes': 'Postes supprimés',
   'machine.unitsPerHour': '{value} unités/h',
+  'machine.perHour.pieces': '{value} pièces/h',
+  'machine.perHour.orders': '{value} commandes/h',
+  'machine.priceHT': '{value} HT',
+  'machine.onRequest': 'Sur devis',
+  'machine.hotline': 'Hotline {value} HT/an',
+  'machine.filter.all': 'Toutes',
+  'machine.filter.tri': 'Tri',
+  'machine.filter.packing': 'Packing',
+  'machine.filter.preparation': 'Préparation',
+  'machine.operators': 'Conduite',
+  'machine.operatorsValue': '{value} opérateur(s) / équipe',
+  'machine.noOperator': 'intégrée au poste d’emballage',
+  'machine.details': 'Fiche détaillée',
+  'machine.source': 'Source : {source}',
+  'machine.assumptions': 'Hypothèses du simulateur',
+  'machine.capexLabel': 'Investissement retenu (€ HT par machine)',
+  'machine.capexHintCatalog': 'Prix catalogue : {value}. Modifiez-le pour refléter votre offre.',
+  'machine.capexHintOnRequest': 'Prix sur devis : saisissez le montant de l’offre pour calculer le délai de retour.',
+  'machine.capexReset': 'Revenir au prix catalogue',
+  'machine.packingPostAdded': 'Le poste « {label} » a été ajouté à vos opérateurs (étape 4) : {productivity} commandes/h par opérateur en manuel.',
+  'machine.na': 'sans objet',
+  'machine.applyQuantity': 'Prévoir {n} machines',
 
   'alert.categoryFlowMismatch':
     'La somme des débits par catégorie ({sum} produits/h) ne correspond pas aux produits/heure ({productsPerHour}). Vérifiez que le mix produits fait 100 % (actuellement {mixTotal} %).',
   'alert.capacityExceeded':
-    'Le débit de pointe ({peak} produits/h) dépasse la cadence de {machine} ({max} unités/h). Prévoyez {machinesNeeded} machines ou choisissez une machine plus capacitaire.',
+    'Le débit de pointe ({peak} {unit}/h) dépasse la cadence de {machine} ({max} {unit}/h). Prévoyez {machinesNeeded} machines ou choisissez une machine plus capacitaire.',
   'alert.outputsExceeded':
     '{required} sorties sont nécessaires mais {machine} n’en propose que {available}. Prévoyez {machinesNeeded} machines ou une machine avec plus de sorties.',
+  'alert.priceOnRequest':
+    '{machine} est proposé sur devis : saisissez l’investissement à l’étape « Solution ISITEC » pour calculer le délai de retour.',
   'alert.noVolume': 'Aucun volume futur saisi : les résultats sont nuls.',
   'alert.title': 'Points d’attention',
 
@@ -139,8 +165,12 @@ export const fr = {
   'results.kpi.capexOf': 'pour {capex} investis',
   'results.kpi.perShift': 'soit {value} par équipe',
   'results.notProfitable': 'Non rentable avec ces hypothèses',
+  'results.priceOnRequest': 'Prix sur devis',
+  'results.benefits.outputsNa': 'Sans objet pour cette machine',
   'results.synthesis':
     'Avec {machine}, vous traitez {orders} commandes/jour avec {operators} opérateurs de moins, pour une économie de {savings}/an et un retour sur investissement en {months} mois.',
+  'results.synthesisNoPrice':
+    'Avec {machine}, vous traitez {orders} commandes/jour avec {operators} opérateurs de moins, pour une économie de {savings}/an. Le délai de retour sera calculé sur la base de votre offre.',
   'results.synthesisNotProfitable':
     'Avec {machine}, vous traitez {orders} commandes/jour avec {operators} opérateurs de moins, mais l’économie de main-d’œuvre ne couvre pas les coûts de la machine avec ces hypothèses.',
   'results.costs.title': "Coût de main-d'œuvre",
@@ -170,7 +200,7 @@ export const fr = {
   'results.table.modified': 'allégé',
   'results.benefits.title': 'Ce que la machine vous apporte',
   'results.benefits.capacity': 'Capacité utilisée',
-  'results.benefits.capacityDetail': '{peak} / {max} unités/h en pointe',
+  'results.benefits.capacityDetail': '{peak} / {max} {unit}/h en pointe',
   'results.benefits.headroom': 'Marge de croissance : +{value}',
   'results.benefits.overload': 'Capacité dépassée : {machinesNeeded} machines nécessaires',
   'results.benefits.outputs': 'Sorties',

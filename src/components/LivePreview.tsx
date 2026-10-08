@@ -1,6 +1,7 @@
 import type { SimulationResult } from '../engine/types';
 import { useI18n } from '../i18n';
 import { useFormatters } from './ui';
+import { paybackLabel } from '../lib/summary';
 import { useScenarioColors } from './results/charts';
 
 export function LivePreview({ result }: { result: SimulationResult }) {
@@ -31,9 +32,7 @@ export function LivePreview({ result }: { result: SimulationResult }) {
           {t('preview.perYear', { value: f.euroCompact(result.roi.annualSavings) })}
         </p>
         <p className="text-xs text-slate-600">
-          {result.roi.paybackMonths !== null
-            ? `${t('results.kpi.payback')} : ${t('results.kpi.paybackValue', { months: f.number(result.roi.paybackMonths) })}`
-            : t('results.notProfitable')}
+          {result.roi.paybackMonths !== null ? `${t('results.kpi.payback')} : ${paybackLabel(t, f, result.roi)}` : paybackLabel(t, f, result.roi)}
         </p>
       </div>
     </aside>

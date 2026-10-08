@@ -61,53 +61,65 @@ src/
 
 ## Modifier le catalogue des machines (`src/config/machines.ts`)
 
-Le fichier contient un tableau `MACHINES`. Chaque machine est un objet :
+Le catalogue reprend la gamme E-COM / RETAIL / 3PL d'ISITEC, à partir des offres standards et du
+catalogue (source indiquée sur chaque fiche) :
+
+| Machine | Cadence max | Sorties | Prix € HT | Source |
+|---|---|---|---|---|
+| ISIWALL 3D – 60 sorties | 1 500 pièces/h | 60 | 85 000 | Offre standard 03/08/2026 |
+| ISIWALL 3D – 100 sorties | 2 000 pièces/h | 100 | 120 000 | Offre standard 05/08/2026 |
+| ISIWALL 3D – 27 sorties | 1 500 pièces/h | 27 | sur devis | Offre standard 03/08/2026 |
+| ISIWALL 2D – 13 / 26 sorties | 1 500 pièces/h | 13 / 26 | sur devis | Offres standards 04 et 06/08/2026 |
+| AMR SORTER | 8 000 pièces/h | sur mesure | sur devis | Catalogue 01/11/2025 |
+| ISIBAGGER 600 | 600 commandes/h | – | 55 500 (convoyeur inclus) | Offre 03/08/2026 |
+| ISIBAGGER 600 D | 600 commandes/h | – | 140 000 | Offre 03/08/2026 |
+| ISI.ECOPACK 600 | 600 commandes/h | – | sur devis | Offre 22/09/2026 |
+
+Toutes les offres incluent un contrat de hotline de 9 200 € HT/an (coûts annuels).
+Pour une machine « sur devis », le commercial saisit l'investissement à l'étape « Solution ISITEC ».
+
+Chaque machine est un objet :
 
 ```ts
 {
-  id: 'sorter-crossbelt',          // identifiant unique, sans espace
-  name: 'ISITEC SortLine',         // nom affiché
-  description: 'Trieur automatique…',
-  type: 'tri',                     // 'tri' | 'preparation' | 'packing'
-  maxThroughput: 6000,             // cadence max (unités/heure)
-  outputs: 150,                    // nombre de sorties / destinations
-  productivities: {                // nouvelles productivités opérateur / heure
-    picking_standard: 380,         //   pour les postes modifiés par la machine
-    consolidation: 200,
-  },
-  removedPosts: ['sorting_standard'], // postes supprimés (effectif = 0)
-  capex: 1_200_000,                // investissement (€)
-  opexYear: 60_000,                // maintenance + énergie + licences (€/an)
+  id: 'isiwall-3d-60',
+  family: 'ISIWALL 3D',
+  name: 'ISIWALL 3D – 60 sorties',
+  description: 'Trieuse automatique…',
+  type: 'tri',                      // 'tri' | 'preparation' | 'packing'
+  image: imgIsiwall3d,              // photo dans src/assets/products/
+  maxThroughput: 1_500,
+  throughputUnit: 'pieces',         // 'pieces' (tri) ou 'orders' (packing)
+  outputs: 60,                      // null = sans objet
+  operatorsPerShift: 1,             // opérateurs de conduite par machine et par équipe
+  productivities: {},               // nouvelles productivités des postes modifiés
+  removedPosts: ['sorting_standard'],
+  capex: 85_000,                    // null = sur devis
+  opexYear: 9_200,
+  highlights: ['…'], specs: [['Bacs', '…']], assumptions: ['…'], source: '…',
 }
 ```
 
-Identifiants de postes utilisables dans `productivities` et `removedPosts` :
+Identifiants de postes : `picking_standard`, `sorting_standard`, `fragile_pick_pack`,
+`specific_pick_pack`, `consolidation`, `packing` (ajouté automatiquement avec une machine de packing,
+240 commandes/h en manuel, déduit de l'offre ISIBAGGER « 2,5 fois moins de temps qu'en manuel »),
+`management`.
 
-| Identifiant          | Poste                                | Unité de productivité |
-|----------------------|--------------------------------------|-----------------------|
-| `picking_standard`   | Picking produits standard (batch)    | pièces / h            |
-| `sorting_standard`   | Tri et mise en bac standard          | pièces / h            |
-| `fragile_pick_pack`  | Pick & pack fragile / gros volume    | pièces / h            |
-| `specific_pick_pack` | Pick & pack produits spécifiques     | pièces / h            |
-| `consolidation`      | Consolidation et palettisation       | bacs / h              |
-| `management`         | Encadrement                          | managers par équipe   |
+> ⚠️ Les hypothèses non chiffrées dans les documents (ex. 1 opérateur d'injection par ISIWALL 3D)
+> sont listées dans `assumptions` et affichées sur la fiche : **à confirmer par ISITEC**.
+> Avec la productivité de tri manuel par défaut (1 200 pièces/h), l'ISIWALL ne dégage pas de gain
+> de main-d'œuvre ; la brochure ISIWALL 3D (« une ligne remplace 2 à 4 collaborateurs ») correspond
+> plutôt à 300–600 pièces/h en tri manuel. Ajustez cette productivité au site du client.
 
-Pour ajouter une machine, copiez un bloc existant, changez l'`id` et les valeurs, puis enregistrez :
-elle apparaît automatiquement à l'étape 4. Un poste absent de `productivities` et de `removedPosts`
-conserve la productivité manuelle du client.
-
-> ⚠️ Les 3 machines fournies sont des **exemples** : toutes les valeurs sont marquées
-> `À RENSEIGNER PAR ISITEC` et doivent être remplacées par les données réelles.
-
-Après modification, lancez `npm test && npm run build` pour vérifier que tout compile.
+Après modification, lancez `npm test && npm run build`.
 
 ## Synthèse PDF
 
 À la fin du parcours, le bouton **Télécharger la synthèse PDF** produit un document A4 de 2 pages :
 page 1 avec le client, l'économie annuelle, les chiffres clés, les coûts des 3 scénarios, le coût cumulé
 avec le point de bascule et les apports de la solution ; page 2 avec le détail par poste, les données
-saisies, les prochaines étapes et le contact ISITEC. Couleurs, adresse, site, email et téléphone se
-règlent dans `src/config/brand.ts`.
+saisies, les prochaines étapes et le contact ISITEC. Le logo officiel (`src/assets/logo-isitec*.png`), les couleurs (bleu ISITEC #151A6A), l'adresse,
+le site, l'email et le téléphone se règlent dans `src/config/brand.ts`.
 
 ## Autres réglages
 

@@ -10,9 +10,10 @@ export type ProductCategory = 'standard' | 'fragile' | 'specific';
  * Flux sur lequel un poste est dimensionné :
  * - une catégorie de produits (pièces/h),
  * - les bacs (bacs/h),
+ * - les commandes (commandes/h, ex. emballage),
  * - l'encadrement (managers par équipe, pas de débit).
  */
-export type FlowSource = ProductCategory | 'bins' | 'management';
+export type FlowSource = ProductCategory | 'bins' | 'orders' | 'management';
 
 /** Identifiants des postes standards (des postes personnalisés peuvent avoir d'autres id). */
 export type StandardPostId =
@@ -21,9 +22,10 @@ export type StandardPostId =
   | 'fragile_pick_pack'
   | 'specific_pick_pack'
   | 'consolidation'
+  | 'packing'
   | 'management';
 
-export type PostUnit = 'pieces' | 'bins' | 'managers';
+export type PostUnit = 'pieces' | 'bins' | 'orders' | 'managers';
 
 export interface PostInput {
   id: string;
@@ -80,20 +82,36 @@ export type MachineType = 'tri' | 'preparation' | 'packing';
 export interface Machine {
   id: string;
   name: string;
+  /** Famille commerciale (ex. ISIWALL 3D) pour regrouper les configurations. */
+  family: string;
   description: string;
   type: MachineType;
-  /** Cadence maximale (unités/h). */
+  /** Photo ou rendu produit (URL). */
+  image?: string;
+  /** Cadence maximale. */
   maxThroughput: number;
-  /** Nombre de sorties / destinations. */
-  outputs: number;
+  /** Unité de la cadence : pièces/h (tri) ou commandes/h (packing). */
+  throughputUnit: 'pieces' | 'orders';
+  /** Nombre de sorties / destinations (null = sans objet ou non communiqué). */
+  outputs: number | null;
+  /** Opérateurs nécessaires à la conduite de chaque machine, par équipe (ex. injection). */
+  operatorsPerShift: number;
   /** Nouvelles productivités opérateur pour les postes modifiés (même unité que le poste). */
   productivities: Partial<Record<string, number>>;
   /** Postes supprimés par la machine (effectif = 0). */
   removedPosts: string[];
-  /** Investissement (€). */
-  capex: number;
-  /** Coûts annuels : maintenance, énergie, licences (€). */
+  /** Investissement catalogue (€ HT). null = prix sur devis. */
+  capex: number | null;
+  /** Coûts annuels : hotline, maintenance, licences (€ HT/an). */
   opexYear: number;
+  /** Points forts affichés sur la fiche. */
+  highlights: string[];
+  /** Caractéristiques complémentaires (libellé, valeur). */
+  specs: [string, string][];
+  /** Hypothèses retenues par le simulateur quand les documents ne précisent pas. */
+  assumptions: string[];
+  /** Document source des données. */
+  source: string;
 }
 
 export type ClientSector = '' | 'retail' | 'ecommerce' | '3pl' | 'industry' | 'other';
@@ -116,6 +134,8 @@ export interface SimulationInputs {
   machineId: string;
   /** Nombre de machines installées (1 par défaut). */
   machineQuantity: number;
+  /** Investissement saisi (€ HT par machine) : remplace le prix catalogue ou complète un prix sur devis. */
+  machineCapex: number | null;
 }
 
 export type ScenarioKey = 'A' | 'B' | 'C';
@@ -163,6 +183,8 @@ export interface CumulativePoint {
 }
 
 export interface RoiResult {
+  /** false si aucun prix n'est connu (machine sur devis, investissement non saisi). */
+  priceKnown: boolean;
   capex: number;
   opexYear: number;
   annualSavings: number;
@@ -180,6 +202,7 @@ export type AlertCode =
   | 'categoryFlowMismatch'
   | 'capacityExceeded'
   | 'outputsExceeded'
+  | 'priceOnRequest'
   | 'noVolume';
 
 export interface Alert {
@@ -189,12 +212,15 @@ export interface Alert {
 }
 
 export interface CapacityInfo {
+  /** Unité du débit comparé à la cadence machine. */
+  unit: 'pieces' | 'orders';
   peakThroughput: number;
   installedThroughput: number;
   /** Taux d'utilisation (0–1+). */
   utilization: number;
   outputsRequired: number;
-  outputsAvailable: number;
+  /** null = sans objet pour cette machine. */
+  outputsAvailable: number | null;
   machinesNeeded: number;
 }
 

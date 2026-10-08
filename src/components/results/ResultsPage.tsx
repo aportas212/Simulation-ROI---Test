@@ -3,6 +3,7 @@ import type { ScenarioKey, SimulationInputs, SimulationResult } from '../../engi
 import { useI18n, type TFunction } from '../../i18n';
 import type { Formatters } from '../../lib/format';
 import type { SaveOutcome } from '../../lib/download';
+import { buildSynthesis, paybackLabel } from '../../lib/summary';
 import { Alerts } from '../Alerts';
 import { Logo, useFormatters } from '../ui';
 import { ChartLegend, CumulativeChart, HeadcountChart, useScenarioColors } from './charts';
@@ -20,17 +21,6 @@ export function horizonLabel(t: TFunction, f: Formatters, years: number) {
   return `${f.number(years)} ${t('unit.years')}`;
 }
 
-export function buildSynthesis(t: TFunction, f: Formatters, inputs: SimulationInputs, result: SimulationResult) {
-  const machine = result.machineQuantity > 1 ? `${result.machineQuantity} × ${result.machine.name}` : result.machine.name;
-  const params = {
-    machine,
-    orders: f.integer(inputs.volumes.ordersPerDayFuture),
-    operators: f.number(result.roi.operatorsSaved),
-    savings: f.euro(result.roi.annualSavings),
-    months: f.number(result.roi.paybackMonths ?? 0),
-  };
-  return result.roi.profitable ? t('results.synthesis', params) : t('results.synthesisNotProfitable', params);
-}
 
 function Kpi({ label, value, sub, highlight = false, negative = false }: { label: string; value: string; sub?: ReactNode; highlight?: boolean; negative?: boolean }) {
   return (
@@ -132,8 +122,8 @@ export function ResultsPage({ inputs, result, onEdit, onLeadSaved }: Props) {
           />
           <Kpi
             label={t('results.kpi.payback')}
-            value={roi.paybackMonths !== null ? t('results.kpi.paybackValue', { months: f.number(roi.paybackMonths) }) : t('results.notProfitable')}
-            negative={roi.paybackMonths === null}
+            value={paybackLabel(t, f, roi)}
+            negative={!roi.profitable}
             sub={t('results.kpi.capexOf', { capex: f.euroCompact(roi.capex) })}
           />
           <Kpi
@@ -220,7 +210,7 @@ export function ResultsPage({ inputs, result, onEdit, onLeadSaved }: Props) {
       </div>
 
       {/* Fin de parcours : téléchargement de la synthèse */}
-      <section className="no-print mt-8 overflow-hidden rounded-2xl bg-[#0B2545] text-white">
+      <section className="no-print mt-8 overflow-hidden rounded-2xl bg-accent text-white">
         <div className="flex flex-col gap-6 p-6 sm:flex-row sm:items-center sm:justify-between sm:p-8">
           <div className="max-w-xl">
             <p className="text-xs font-semibold uppercase tracking-wider text-sky-200">
@@ -231,7 +221,7 @@ export function ResultsPage({ inputs, result, onEdit, onLeadSaved }: Props) {
           </div>
           <div className="flex shrink-0 flex-col items-start gap-2 sm:items-end">
             <button
-              className="btn bg-white px-6 text-base text-[#0B2545] hover:bg-sky-50"
+              className="btn bg-white px-6 text-base text-accent hover:bg-sky-50"
               onClick={handlePdf}
               disabled={pdfState === 'busy'}
             >
@@ -265,7 +255,8 @@ function Benefits({ result }: { result: SimulationResult }) {
   const { capacity, scenarios } = result;
   const utilization = capacity.utilization * 100;
   const over = utilization > 100;
-  const outputsOk = capacity.outputsAvailable >= capacity.outputsRequired;
+  const outputsNa = capacity.outputsAvailable === null;
+  const outputsOk = outputsNa || (capacity.outputsAvailable ?? 0) >= capacity.outputsRequired;
   const changed = scenarios.C.posts
     .map((p, i) => ({ c: p, b: scenarios.B.posts[i] }))
     // Seuls les postes réellement supprimés ou allégés (effectif en baisse) sont mis en avant
@@ -280,7 +271,7 @@ function Benefits({ result }: { result: SimulationResult }) {
           <div className={`h-full rounded-full ${over ? 'bg-red-600' : 'bg-accent'}`} style={{ width: `${Math.min(100, utilization)}%` }} />
         </div>
         <p className="mt-2 text-sm text-slate-600">
-          {t('results.benefits.capacityDetail', { peak: f.integer(capacity.peakThroughput), max: f.integer(capacity.installedThroughput) })}
+          {t('results.benefits.capacityDetail', { peak: f.integer(capacity.peakThroughput), max: f.integer(capacity.installedThroughput), unit: t(`unit.${capacity.unit}`) })}
         </p>
         <p className={`mt-1 text-sm font-semibold ${over ? 'text-red-700' : 'text-emerald-700'}`}>
           {over
@@ -290,15 +281,24 @@ function Benefits({ result }: { result: SimulationResult }) {
       </div>
       <div>
         <p className="eyebrow">{t('results.benefits.outputs')}</p>
-        <p className={`mt-1 text-3xl font-extrabold tabular-nums ${outputsOk ? 'text-slate-900' : 'text-red-700'}`}>
-          {f.integer(capacity.outputsAvailable)} <span className="text-lg font-semibold text-slate-400">/ {f.integer(capacity.outputsRequired)}</span>
-        </p>
-        <p className="mt-2 text-sm text-slate-600">
-          {t('results.benefits.outputsDetail', { available: f.integer(capacity.outputsAvailable), required: f.integer(capacity.outputsRequired) })}
-        </p>
-        <p className={`mt-1 text-sm font-semibold ${outputsOk ? 'text-emerald-700' : 'text-red-700'}`}>
-          {outputsOk ? `✓ ${t('results.benefits.outputsOk')}` : `⚠ ${t('results.benefits.outputsKo')}`}
-        </p>
+        {outputsNa ? (
+          <>
+            <p className="mt-1 text-3xl font-extrabold text-slate-300">—</p>
+            <p className="mt-2 text-sm text-slate-600">{t('results.benefits.outputsNa')}</p>
+          </>
+        ) : (
+          <>
+            <p className={`mt-1 text-3xl font-extrabold tabular-nums ${outputsOk ? 'text-slate-900' : 'text-red-700'}`}>
+              {f.integer(capacity.outputsAvailable ?? 0)} <span className="text-lg font-semibold text-slate-400">/ {f.integer(capacity.outputsRequired)}</span>
+            </p>
+            <p className="mt-2 text-sm text-slate-600">
+              {t('results.benefits.outputsDetail', { available: f.integer(capacity.outputsAvailable ?? 0), required: f.integer(capacity.outputsRequired) })}
+            </p>
+            <p className={`mt-1 text-sm font-semibold ${outputsOk ? 'text-emerald-700' : 'text-red-700'}`}>
+              {outputsOk ? `✓ ${t('results.benefits.outputsOk')}` : `⚠ ${t('results.benefits.outputsKo')}`}
+            </p>
+          </>
+        )}
       </div>
       <div>
         <p className="eyebrow">{t('results.benefits.posts')}</p>

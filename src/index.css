@@ -9,9 +9,9 @@
  * --accent-soft  : fonds légers
  */
 :root {
-  --accent: 0 92 169;
-  --accent-dark: 0 68 128;
-  --accent-soft: 232 241 250;
+  --accent: 21 26 106; /* bleu ISITEC #151A6A (logo) */
+  --accent-dark: 13 16 72;
+  --accent-soft: 236 237 247;
 }
 
 html,

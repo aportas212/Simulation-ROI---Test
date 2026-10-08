@@ -1,13 +1,14 @@
 import { DEFAULT_POSTS } from '../../config/defaults';
+import { PACKING_POST } from '../../config/machines';
 import type { FlowSource, PostInput, StaffingMode } from '../../engine/types';
 import { useI18n } from '../../i18n';
 import { NumberField, NumberInput, useFormatters } from '../ui';
 import type { StepProps } from './types';
 
-const FLOWS: FlowSource[] = ['standard', 'fragile', 'specific', 'bins', 'management'];
+const FLOWS: FlowSource[] = ['standard', 'fragile', 'specific', 'bins', 'orders', 'management'];
 const unitForFlow = (flow: FlowSource): PostInput['unit'] =>
-  flow === 'bins' ? 'bins' : flow === 'management' ? 'managers' : 'pieces';
-const isStandardPost = (id: string) => DEFAULT_POSTS.some((p) => p.id === id);
+  flow === 'bins' ? 'bins' : flow === 'orders' ? 'orders' : flow === 'management' ? 'managers' : 'pieces';
+const isStandardPost = (id: string) => id === PACKING_POST.id || DEFAULT_POSTS.some((p) => p.id === id);
 
 export function StepStaffing({ inputs, update, result }: StepProps) {
   const { t } = useI18n();
@@ -140,7 +141,7 @@ export function StepStaffing({ inputs, update, result }: StepProps) {
                     )}
                   </td>
                   <td className="py-3 pr-2">
-                    {custom && (
+                    {(custom || post.id === PACKING_POST.id) && (
                       <button
                         type="button"
                         className="btn-ghost px-2 py-1 text-slate-400 hover:text-red-600"

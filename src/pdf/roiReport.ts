@@ -9,6 +9,8 @@ import type { ScenarioKey, SimulationInputs, SimulationResult } from '../engine/
 import type { TFunction } from '../i18n';
 import type { Formatters } from '../lib/format';
 import { saveFile, type SaveOutcome } from '../lib/download';
+import { buildSynthesis, paybackLabel } from '../lib/summary';
+import logoWhiteUrl from '../assets/logo-isitec-white.png';
 
 const PAGE_W = 210;
 const PAGE_H = 297;
@@ -33,12 +35,38 @@ export function pdfText(s: string): string {
     .replace(/\u2212/g, '-');
 }
 
+/** Images déjà chargées (data URL) : logo blanc pour les bandeaux, photo de la machine. */
+export interface ReportImages {
+  logoWhite?: string;
+  machine?: string;
+}
+
 interface ReportOptions {
   inputs: SimulationInputs;
   result: SimulationResult;
   t: TFunction;
   f: Formatters;
   date?: Date;
+  images?: ReportImages;
+}
+
+function imageFormat(dataUrl: string) {
+  return dataUrl.startsWith('data:image/png') ? 'PNG' : 'JPEG';
+}
+
+/** Place une image dans un cadre en conservant ses proportions ; renvoie la largeur utilisée. */
+function drawContained(doc: jsPDF, dataUrl: string, x: number, y: number, w: number, h: number, align: 'left' | 'center' = 'center') {
+  try {
+    const props = doc.getImageProperties(dataUrl);
+    const ratio = Math.min(w / props.width, h / props.height);
+    const iw = props.width * ratio;
+    const ih = props.height * ratio;
+    const ix = align === 'left' ? x : x + (w - iw) / 2;
+    doc.addImage(dataUrl, imageFormat(dataUrl), ix, y + (h - ih) / 2, iw, ih, undefined, 'FAST');
+    return iw;
+  } catch {
+    return 0;
+  }
 }
 
 class Pdf {
@@ -118,12 +146,12 @@ function footer(p: Pdf, t: TFunction, page: number, total: number) {
   p.text(brand, M, y + 1.5);
   const bw = p.doc.getTextWidth(brand);
   p.font(7, 'normal', C.muted);
-  const contact = [BRAND.address, BRAND.website, BRAND.phone, BRAND.email].filter(Boolean).join('  ·  ');
+  const contact = [BRAND.address, BRAND.website, BRAND.phone].filter(Boolean).join('  ·  ');
   p.text(`  ·  ${p.fit(contact, CONTENT_W - bw - 25)}`, M + bw, y + 1.5);
   p.text(t('pdf.page', { page, total }), PAGE_W - M, y + 1.5, { align: 'right' });
 }
 
-export function buildRoiReport({ inputs, result, t, f, date = new Date() }: ReportOptions): jsPDF {
+export function buildRoiReport({ inputs, result, t, f, date = new Date(), images = {} }: ReportOptions): jsPDF {
   const p = new Pdf();
   const d = p.doc;
   const { roi, scenarios, machine } = result;
@@ -142,14 +170,14 @@ export function buildRoiReport({ inputs, result, t, f, date = new Date() }: Repo
   // Bandeau
   p.fill(C.navy);
   d.rect(0, 0, PAGE_W, 36, 'F');
-  p.fill(C.accent);
+  p.fill(C.stripe);
   d.rect(0, 36, PAGE_W, 1.4, 'F');
-  p.logo(M, 10, 11, true);
-  p.font(7, 'normal', '#B9C7DA');
-  p.text(BRAND.tagline, M, 28.5);
+  if (!images.logoWhite || !drawContained(d, images.logoWhite, M, 6, 60, 24, 'left')) p.logo(M, 10, 11, true);
   p.label(t('pdf.docTitle'), PAGE_W - M, 15.5, '#FFFFFF', 'right');
-  p.font(9, 'normal', '#B9C7DA');
+  p.font(9, 'normal', '#C9CCF0');
   p.text(f.date(date), PAGE_W - M, 21.5, { align: 'right' });
+  p.font(7, 'normal', '#C9CCF0');
+  p.text(BRAND.tagline, PAGE_W - M, 28, { align: 'right' });
 
   // Client et solution
   let y = 47;
@@ -161,12 +189,20 @@ export function buildRoiReport({ inputs, result, t, f, date = new Date() }: Repo
   p.font(8.5, 'normal', C.muted);
   p.text(p.fit([client.email, client.phone].filter(Boolean).join(' · '), 100), M, y + 18);
 
-  const sx = 124;
+  // Solution : photo de la machine + nom + description
+  let sx = 118;
+  if (images.machine) {
+    p.fill('#F8FAFC');
+    d.roundedRect(sx, y - 4, 30, 24, 1.5, 1.5, 'F');
+    drawContained(d, images.machine, sx + 1, y - 3, 28, 22);
+    sx += 34;
+  }
+  const solW = PAGE_W - M - sx;
   p.label(t('pdf.solution'), sx, y);
-  p.font(12.5, 'bold', C.navy);
-  p.text(p.fit(machineLabel, PAGE_W - M - sx), sx, y + 7);
-  p.font(8.5, 'normal', C.muted);
-  p.para(machine.description, sx, y + 12.5, PAGE_W - M - sx, 3.8, 2);
+  p.font(11, 'bold', C.navy);
+  const nameH = p.para(machineLabel, sx, y + 6.5, solW, 4.6, 2);
+  p.font(7.6, 'normal', C.muted);
+  p.para(machine.description, sx, y + 6.5 + nameH + 0.5, solW, 3.3, nameH > 5 ? 2 : 3);
 
   // Gain annuel (bloc principal)
   y = 72;
@@ -183,7 +219,7 @@ export function buildRoiReport({ inputs, result, t, f, date = new Date() }: Repo
   p.font(7.5, 'normal', C.muted);
   p.text(t('results.kpi.vsManual'), M + 7, y + 27.5);
   p.font(9.5, 'normal', C.ink);
-  const synth = buildSynthesisText(t, f, inputs, result);
+  const synth = buildSynthesis(t, f, inputs, result);
   p.para(synth, 104, y + 10, PAGE_W - M - 104 - 5, 4.6, 5);
 
   // Chiffres clés
@@ -191,9 +227,9 @@ export function buildRoiReport({ inputs, result, t, f, date = new Date() }: Repo
   const kpis: { label: string; value: string; sub: string; bad?: boolean }[] = [
     {
       label: t('results.kpi.payback'),
-      value: roi.paybackMonths !== null ? t('results.kpi.paybackValue', { months: f.number(roi.paybackMonths) }) : t('results.notProfitable'),
+      value: paybackLabel(t, f, roi),
       sub: t('results.kpi.capexOf', { capex: f.euroCompact(roi.capex) }),
-      bad: roi.paybackMonths === null,
+      bad: !roi.profitable,
     },
     {
       label: t('results.kpi.gain', { horizon }),
@@ -283,9 +319,9 @@ export function buildRoiReport({ inputs, result, t, f, date = new Date() }: Repo
   d.addPage();
   p.fill(C.navy);
   d.rect(0, 0, PAGE_W, 20, 'F');
-  p.fill(C.accent);
+  p.fill(C.stripe);
   d.rect(0, 20, PAGE_W, 1, 'F');
-  p.logo(M, 6, 8, true);
+  if (!images.logoWhite || !drawContained(d, images.logoWhite, M, 3, 40, 14, 'left')) p.logo(M, 6, 8, true);
   p.font(8.5, 'normal', '#B9C7DA');
   p.text(p.fit(`${t('pdf.docTitle')}${client.company ? ` · ${client.company}` : ''}`, 90), PAGE_W - M, 11.5, { align: 'right' });
 
@@ -320,28 +356,19 @@ export function buildRoiReport({ inputs, result, t, f, date = new Date() }: Repo
 
   y += 32;
   p.fill(C.navy);
-  d.roundedRect(M, y, CONTENT_W, 22, 2.5, 2.5, 'F');
+  d.roundedRect(M, y, CONTENT_W, 27, 2.5, 2.5, 'F');
   p.label(t('pdf.contactUs'), M + 6, y + 7, '#B9C7DA');
   p.font(12, 'bold', '#FFFFFF');
   p.text(`${BRAND.name} ${BRAND.nameSuffix}`, M + 6, y + 13.5);
-  p.font(8, 'normal', '#DCE6F2');
-  p.text(p.fit([BRAND.address, BRAND.website, BRAND.phone, BRAND.email].filter(Boolean).join('  ·  '), CONTENT_W - 12), M + 6, y + 18.5);
+  p.font(8, 'normal', '#DCE0F5');
+  p.text(p.fit(BRAND.address, CONTENT_W - 12), M + 6, y + 18.5);
+  p.font(8, 'bold', '#FFFFFF');
+  p.text(p.fit([BRAND.phone, BRAND.email, BRAND.website].filter(Boolean).join('   ·   '), CONTENT_W - 12), M + 6, y + 23);
 
   footer(p, t, 2, TOTAL_PAGES);
   return d;
 }
 
-function buildSynthesisText(t: TFunction, f: Formatters, inputs: SimulationInputs, result: SimulationResult) {
-  const machine = result.machineQuantity > 1 ? `${result.machineQuantity} × ${result.machine.name}` : result.machine.name;
-  const params = {
-    machine,
-    orders: f.integer(inputs.volumes.ordersPerDayFuture),
-    operators: f.number(result.roi.operatorsSaved),
-    savings: f.euro(result.roi.annualSavings),
-    months: f.number(result.roi.paybackMonths ?? 0),
-  };
-  return result.roi.profitable ? t('results.synthesis', params) : t('results.synthesisNotProfitable', params);
-}
 
 function drawCumulative(p: Pdf, t: TFunction, f: Formatters, result: SimulationResult, x: number, y: number, w: number, h: number) {
   const d = p.doc;
@@ -437,16 +464,21 @@ function drawBenefits(p: Pdf, t: TFunction, f: Formatters, result: SimulationRes
   p.fill(over ? '#B91C1C' : C.accent);
   d.roundedRect(x + 22, y + 3.2, Math.max(1, Math.min(1, util / 100) * (w - 22)), 2.8, 1.4, 1.4, 'F');
   p.font(7, 'normal', C.muted);
-  p.text(t('results.benefits.capacityDetail', { peak: f.integer(capacity.peakThroughput), max: f.integer(capacity.installedThroughput) }), x, y + 10.5);
+  p.text(t('results.benefits.capacityDetail', { peak: f.integer(capacity.peakThroughput), max: f.integer(capacity.installedThroughput), unit: t(`unit.${capacity.unit}`) }), x, y + 10.5);
 
   // Sorties
   y += 16;
-  const outputsOk = capacity.outputsAvailable >= capacity.outputsRequired;
   p.label(t('pdf.outputs'), x, y);
-  p.font(13, 'bold', outputsOk ? C.ink : '#B91C1C');
-  p.text(`${f.integer(capacity.outputsAvailable)} / ${f.integer(capacity.outputsRequired)}`, x, y + 6.5);
-  p.font(7, 'bold', outputsOk ? C.success : '#B91C1C');
-  p.text(t(outputsOk ? 'results.benefits.outputsOk' : 'results.benefits.outputsKo'), x + 30, y + 6);
+  if (capacity.outputsAvailable === null) {
+    p.font(9, 'normal', C.muted);
+    p.text(t('results.benefits.outputsNa'), x, y + 6);
+  } else {
+    const outputsOk = capacity.outputsAvailable >= capacity.outputsRequired;
+    p.font(13, 'bold', outputsOk ? C.ink : '#B91C1C');
+    p.text(`${f.integer(capacity.outputsAvailable)} / ${f.integer(capacity.outputsRequired)}`, x, y + 6.5);
+    p.font(7, 'bold', outputsOk ? C.success : '#B91C1C');
+    p.text(t(outputsOk ? 'results.benefits.outputsOk' : 'results.benefits.outputsKo'), x + 30, y + 6);
+  }
 
   // Postes supprimés ou allégés
   y += 13;
@@ -588,8 +620,26 @@ function drawAssumptions(p: Pdf, t: TFunction, f: Formatters, inputs: Simulation
 }
 
 /** Génère la synthèse et la propose au téléchargement. */
-export async function downloadRoiReport(opts: ReportOptions): Promise<SaveOutcome> {
-  const doc = buildRoiReport(opts);
+/** Charge une image (URL ou data URL) en data URL ; undefined si indisponible. */
+async function toDataUrl(url: string | undefined): Promise<string | undefined> {
+  if (!url) return undefined;
+  if (url.startsWith('data:')) return url;
+  try {
+    const blob = await (await fetch(url)).blob();
+    return await new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : undefined);
+      reader.onerror = () => resolve(undefined);
+      reader.readAsDataURL(blob);
+    });
+  } catch {
+    return undefined;
+  }
+}
+
+export async function downloadRoiReport(opts: Omit<ReportOptions, 'images'>): Promise<SaveOutcome> {
+  const [logoWhite, machine] = await Promise.all([toDataUrl(logoWhiteUrl), toDataUrl(opts.result.machine.image)]);
+  const doc = buildRoiReport({ ...opts, images: { logoWhite, machine } });
   const slug = (opts.inputs.client.company || 'client')
     .normalize('NFD')
     .replace(/[̀-ͯ]/g, '')

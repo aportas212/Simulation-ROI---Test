@@ -46,16 +46,24 @@ function referenceInputs(): SimulationInputs {
     staffing: { mode: 'computed', posts: posts(), costPerOperatorYear: 20000, horizonYears: 5 },
     machineId: 'test',
     machineQuantity: 1,
+    machineCapex: null,
   };
 }
 
 const machine: Machine = {
   id: 'test',
   name: 'Machine test',
+  family: 'Test',
   description: '',
   type: 'tri',
   maxThroughput: 6000,
+  throughputUnit: 'pieces',
   outputs: 100,
+  operatorsPerShift: 0,
+  highlights: [],
+  specs: [],
+  assumptions: [],
+  source: 'test',
   productivities: { picking_standard: 600 },
   removedPosts: ['sorting_standard'],
   capex: 500_000,
@@ -267,5 +275,64 @@ describe('contrôles', () => {
 
   it("aucune alerte sur le cas nominal", () => {
     expect(runSimulation(referenceInputs(), machine).alerts).toEqual([]);
+  });
+});
+
+describe('catalogue ISITEC : règles spécifiques', () => {
+  it("ajoute l'opérateur de conduite par machine et par équipe (scénario C uniquement)", () => {
+    const inputs = referenceInputs();
+    inputs.machineQuantity = 2;
+    const m: Machine = { ...machine, operatorsPerShift: 1 };
+    const r = runSimulation(inputs, m);
+    const op = (k: 'A' | 'B' | 'C') => r.scenarios[k].posts.find((p) => p.id === 'machine_operation')!;
+    expect(op('A').perShift).toBe(0);
+    expect(op('B').perShift).toBe(0);
+    expect(op('C').perShift).toBe(2); // 1 opérateur × 2 machines
+    expect(op('C').perDay).toBe(4); // × 2 équipes
+    // les 3 scénarios gardent le même nombre de lignes (tableau aligné)
+    expect(r.scenarios.A.posts).toHaveLength(r.scenarios.C.posts.length);
+  });
+
+  it('dimensionne un poste sur le flux commandes/h', () => {
+    const inputs = referenceInputs();
+    inputs.staffing.posts = [
+      ...posts(),
+      { id: 'packing', label: 'Emballage', unit: 'orders', flow: 'orders', productivity: 240, currentHeadcount: null },
+    ];
+    const a = computeCurrentScenario(inputs);
+    const packing = a.posts.find((p) => p.id === 'packing')!;
+    expect(packing.throughput).toBe(200); // 3 000 commandes / 15 h
+    expectWithin(packing.perShift, 200 / 240, 1e-9);
+  });
+
+  it('compare la cadence packing en commandes/h', () => {
+    const inputs = referenceInputs(); // 4 000 produits/h, 20 produits/commande → 200 commandes/h
+    const packer: Machine = { ...machine, throughputUnit: 'orders', maxThroughput: 600, outputs: null };
+    const r = runSimulation(inputs, packer);
+    expect(r.capacity.unit).toBe('orders');
+    expect(r.capacity.peakThroughput).toBe(200);
+    expect(r.capacity.outputsAvailable).toBeNull();
+    expect(r.alerts.some((a) => a.code === 'outputsExceeded')).toBe(false);
+  });
+
+  it('prix sur devis : pas de délai de retour tant que l’investissement n’est pas saisi', () => {
+    const inputs = referenceInputs();
+    const onRequest: Machine = { ...machine, capex: null };
+    const r = runSimulation(inputs, onRequest);
+    expect(r.roi.priceKnown).toBe(false);
+    expect(r.roi.paybackMonths).toBeNull();
+    expect(r.alerts.some((a) => a.code === 'priceOnRequest')).toBe(true);
+
+    inputs.machineCapex = 90_000;
+    const r2 = runSimulation(inputs, onRequest);
+    expect(r2.roi.priceKnown).toBe(true);
+    expect(r2.roi.capex).toBe(90_000);
+    expect(r2.alerts.some((a) => a.code === 'priceOnRequest')).toBe(false);
+  });
+
+  it("l'investissement saisi remplace le prix catalogue", () => {
+    const inputs = referenceInputs();
+    inputs.machineCapex = 400_000;
+    expect(runSimulation(inputs, machine).roi.capex).toBe(400_000);
   });
 });

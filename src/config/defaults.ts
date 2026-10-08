@@ -17,9 +17,10 @@ export function createDefaultInputs(): SimulationInputs {
   return {
     client: { ...EMPTY_CLIENT },
     volumes: {
-      ordersPerDayCurrent: 3000,
-      ordersPerDayFuture: 4000,
-      productsPerOrder: 20,
+      // Valeurs d'exemple : site e-commerce / retail moyen, à remplacer par celles du client
+      ordersPerDayCurrent: 1500,
+      ordersPerDayFuture: 2000,
+      productsPerOrder: 8,
       hoursPerDay: 15,
       shiftsPerDay: 2,
       daysPerYear: 300,
@@ -27,7 +28,7 @@ export function createDefaultInputs(): SimulationInputs {
     },
     flows: {
       peakThroughput: null,
-      outputsRequired: 120,
+      outputsRequired: 60,
       binsPerOrder: 1,
     },
     staffing: {
@@ -38,5 +39,6 @@ export function createDefaultInputs(): SimulationInputs {
     },
     machineId: MACHINES[0].id,
     machineQuantity: 1,
+    machineCapex: null,
   };
 }

@@ -1,6 +1,7 @@
 import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useI18n } from '../i18n';
 import { createFormatters, type Formatters } from '../lib/format';
+import logoUrl from '../assets/logo-isitec.png';
 
 export function useFormatters(): Formatters {
   const { intlLocale } = useI18n();
@@ -114,17 +115,7 @@ export function NumberField({ label, hint, ...props }: FieldProps) {
 }
 
 export function Logo({ className = '' }: { className?: string }) {
-  return (
-    <div className={`flex items-center gap-2.5 ${className}`}>
-      <svg viewBox="0 0 32 32" className="h-8 w-8" aria-hidden>
-        <rect width="32" height="32" rx="6" className="fill-accent" />
-        <path d="M9 8h4v16H9zM16 8h7v4h-7zM16 14h7v4h-7zM16 20h7v4h-7z" fill="#fff" />
-      </svg>
-      <span className="text-lg font-extrabold tracking-tight text-slate-900">
-        ISITEC <span className="font-medium text-slate-500">International</span>
-      </span>
-    </div>
-  );
+  return <img src={logoUrl} alt="ISITEC International" className={`h-11 w-auto select-none ${className}`} draggable={false} />;
 }
 
 export function Modal({

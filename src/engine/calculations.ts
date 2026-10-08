@@ -5,6 +5,7 @@
  *   produits_jour   = commandes_jour × produits_par_commande
  *   produits_heure  = produits_jour / heures_jour
  *   bacs_heure      = (commandes_jour × bacs_par_commande) / heures_jour
+ *   commandes_heure = commandes_jour / heures_jour
  *   débit_catégorie = produits_heure × part_mix_catégorie
  *
  * Par poste :
@@ -48,6 +49,7 @@ export function safeDivide(numerator: number, denominator: number): number {
 
 export interface DerivedFlows {
   ordersPerDay: number;
+  ordersPerHour: number;
   productsPerDay: number;
   productsPerHour: number;
   binsPerHour: number;
@@ -68,6 +70,7 @@ export function computeDerivedFlows(params: {
   const binsPerHour = safeDivide(ordersPerDay * sanitize(params.binsPerOrder), params.hoursPerDay);
   return {
     ordersPerDay,
+    ordersPerHour: safeDivide(ordersPerDay, params.hoursPerDay),
     productsPerDay,
     productsPerHour,
     binsPerHour,
@@ -88,6 +91,8 @@ export function throughputForFlow(flow: FlowSource, derived: DerivedFlows): numb
       return derived.categoryThroughput[flow];
     case 'bins':
       return derived.binsPerHour;
+    case 'orders':
+      return derived.ordersPerHour;
     case 'management':
       return 0;
   }
@@ -120,6 +125,24 @@ export function referenceProductivity(
   // Productivité implicite déduite de l'effectif saisi : débit actuel / effectif actuel
   const implied = safeDivide(throughputForFlow(post.flow, currentDerived), declared);
   return implied > 0 ? implied : sanitize(post.productivity);
+}
+
+/** Poste virtuel « conduite des machines » (ex. opérateur d'injection), présent dans les 3 scénarios pour aligner les tableaux. */
+export const MACHINE_OPERATION_POST_ID = 'machine_operation';
+
+function machineOperationPost(machine: Machine): PostInput {
+  return {
+    id: MACHINE_OPERATION_POST_ID,
+    label: `Conduite ${machine.family}`,
+    unit: 'managers',
+    flow: 'management',
+    productivity: sanitize(machine.operatorsPerShift),
+    currentHeadcount: null,
+  };
+}
+
+function needsOperationPost(machine?: Machine): machine is Machine {
+  return !!machine && sanitize(machine.operatorsPerShift) > 0;
 }
 
 interface PostComputation {
@@ -203,40 +226,38 @@ function derivedFor(inputs: SimulationInputs, ordersPerDay: number): DerivedFlow
 }
 
 /** Scénario A : volumes actuels, productivités manuelles (ou effectifs saisis). */
-export function computeCurrentScenario(inputs: SimulationInputs): ScenarioResult {
+export function computeCurrentScenario(inputs: SimulationInputs, machine?: Machine): ScenarioResult {
   const derived = derivedFor(inputs, inputs.volumes.ordersPerDayCurrent);
   const declared = inputs.staffing.mode === 'declared';
-  return buildScenario(
-    'A',
-    derived,
-    inputs.staffing.posts.map((post) => ({
-      post,
-      productivity: referenceProductivity(post, inputs.staffing.mode, derived),
-      status: 'manual',
-      forcedPerShift:
-        declared && post.currentHeadcount !== null ? post.currentHeadcount : undefined,
-    })),
-    inputs,
-  );
+  const computations: PostComputation[] = inputs.staffing.posts.map((post) => ({
+    post,
+    productivity: referenceProductivity(post, inputs.staffing.mode, derived),
+    status: 'manual',
+    forcedPerShift:
+      declared && post.currentHeadcount !== null ? post.currentHeadcount : undefined,
+  }));
+  if (needsOperationPost(machine)) {
+    computations.push({ post: machineOperationPost(machine), productivity: 0, status: 'manual', forcedPerShift: 0 });
+  }
+  return buildScenario('A', derived, computations, inputs);
 }
 
 /**
  * Scénario B : volumes futurs, productivités manuelles.
  * Les débits sont recalculés à partir des produits/heure futurs (jamais par règle de trois).
  */
-export function computeFutureManualScenario(inputs: SimulationInputs): ScenarioResult {
+export function computeFutureManualScenario(inputs: SimulationInputs, machine?: Machine): ScenarioResult {
   const current = derivedFor(inputs, inputs.volumes.ordersPerDayCurrent);
   const derived = derivedFor(inputs, inputs.volumes.ordersPerDayFuture);
-  return buildScenario(
-    'B',
-    derived,
-    inputs.staffing.posts.map((post) => ({
-      post,
-      productivity: referenceProductivity(post, inputs.staffing.mode, current),
-      status: 'manual',
-    })),
-    inputs,
-  );
+  const computations: PostComputation[] = inputs.staffing.posts.map((post) => ({
+    post,
+    productivity: referenceProductivity(post, inputs.staffing.mode, current),
+    status: 'manual',
+  }));
+  if (needsOperationPost(machine)) {
+    computations.push({ post: machineOperationPost(machine), productivity: 0, status: 'manual', forcedPerShift: 0 });
+  }
+  return buildScenario('B', derived, computations, inputs);
 }
 
 /** Scénario C : volumes futurs, productivités de la machine, postes supprimés à 0. */
@@ -246,10 +267,7 @@ export function computeFutureIsitecScenario(
 ): ScenarioResult {
   const current = derivedFor(inputs, inputs.volumes.ordersPerDayCurrent);
   const derived = derivedFor(inputs, inputs.volumes.ordersPerDayFuture);
-  return buildScenario(
-    'C',
-    derived,
-    inputs.staffing.posts.map((post): PostComputation => {
+  const computations = inputs.staffing.posts.map((post): PostComputation => {
       if (machine.removedPosts.includes(post.id)) {
         return { post, productivity: 0, status: 'removed' };
       }
@@ -262,9 +280,18 @@ export function computeFutureIsitecScenario(
         productivity: referenceProductivity(post, inputs.staffing.mode, current),
         status: 'manual',
       };
-    }),
-    inputs,
-  );
+  });
+  if (needsOperationPost(machine)) {
+    // Opérateurs de conduite : par machine et par équipe, seulement s'il y a de l'activité
+    const quantity = Math.max(1, Math.round(sanitize(inputs.machineQuantity)) || 1);
+    computations.push({
+      post: machineOperationPost(machine),
+      productivity: sanitize(machine.operatorsPerShift),
+      status: 'modified',
+      forcedPerShift: derived.productsPerHour > 0 ? sanitize(machine.operatorsPerShift) * quantity : 0,
+    });
+  }
+  return buildScenario('C', derived, computations, inputs);
 }
 
 /** ROI : comparaison du scénario B (futur manuel) et du scénario C (futur ISITEC). */
@@ -276,6 +303,8 @@ export function computeRoi(params: {
   capex: number;
   opexYear: number;
   horizonYears: number;
+  /** false = prix sur devis non renseigné (délai de retour non calculable). Par défaut : true. */
+  priceKnown?: boolean;
 }): RoiResult {
   const capex = sanitize(params.capex);
   const opexYear = sanitize(params.opexYear);
@@ -283,11 +312,12 @@ export function computeRoi(params: {
   const annualCostManual = sanitize(params.annualCostManual);
   const annualCostIsitec = sanitize(params.annualCostIsitec);
 
+  const priceKnown = params.priceKnown ?? true;
   const annualSavings = annualCostManual - (annualCostIsitec + opexYear);
   const profitable = annualSavings > 0;
-  const paybackMonths = profitable ? (capex / annualSavings) * 12 : null;
+  const paybackMonths = profitable && priceKnown ? (capex / annualSavings) * 12 : null;
   const cumulativeGain = annualSavings * horizon - capex;
-  const roiPercent = capex > 0 ? (cumulativeGain / capex) * 100 : null;
+  const roiPercent = capex > 0 && priceKnown ? (cumulativeGain / capex) * 100 : null;
 
   const months = Math.max(1, Math.round(horizon * 12));
   const cumulative: CumulativePoint[] = [];
@@ -300,6 +330,7 @@ export function computeRoi(params: {
   }
 
   return {
+    priceKnown,
     capex,
     opexYear,
     annualSavings,
@@ -322,19 +353,23 @@ export function computeCapacity(
   machine: Machine,
   quantity: number,
 ): CapacityInfo {
-  const peakThroughput =
+  const peakProducts =
     inputs.flows.peakThroughput !== null
       ? sanitize(inputs.flows.peakThroughput)
       : defaultPeakThroughput(inputs);
+  // Packing : la cadence machine s'exprime en commandes/h → pointe produits ÷ produits par commande
+  const unit = machine.throughputUnit;
+  const peakThroughput = unit === 'orders' ? safeDivide(peakProducts, inputs.volumes.productsPerOrder) : peakProducts;
   const installedThroughput = sanitize(machine.maxThroughput) * quantity;
-  const outputsAvailable = sanitize(machine.outputs) * quantity;
+  const outputsAvailable = machine.outputs === null ? null : sanitize(machine.outputs) * quantity;
   const outputsRequired = sanitize(inputs.flows.outputsRequired);
   const machinesNeeded = Math.max(
     1,
     Math.ceil(safeDivide(peakThroughput, machine.maxThroughput)),
-    Math.ceil(safeDivide(outputsRequired, machine.outputs)),
+    machine.outputs === null ? 1 : Math.ceil(safeDivide(outputsRequired, machine.outputs)),
   );
   return {
+    unit,
     peakThroughput,
     installedThroughput,
     utilization: safeDivide(peakThroughput, installedThroughput),
@@ -376,13 +411,14 @@ export function computeAlerts(
       params: {
         peak: capacity.peakThroughput,
         max: capacity.installedThroughput,
+        unit: capacity.unit,
         machine: machine.name,
         machinesNeeded: capacity.machinesNeeded,
       },
     });
   }
 
-  if (capacity.outputsRequired > capacity.outputsAvailable) {
+  if (capacity.outputsAvailable !== null && capacity.outputsRequired > capacity.outputsAvailable) {
     alerts.push({
       code: 'outputsExceeded',
       severity: 'warning',
@@ -393,6 +429,10 @@ export function computeAlerts(
         machinesNeeded: capacity.machinesNeeded,
       },
     });
+  }
+
+  if (inputs.machineCapex === null && machine.capex === null) {
+    alerts.push({ code: 'priceOnRequest', severity: 'info', params: { machine: machine.name } });
   }
 
   if (scenarios.B.productsPerHour === 0) {
@@ -406,18 +446,21 @@ export function computeAlerts(
 export function runSimulation(inputs: SimulationInputs, machine: Machine): SimulationResult {
   const quantity = Math.max(1, Math.round(sanitize(inputs.machineQuantity)) || 1);
   const scenarios = {
-    A: computeCurrentScenario(inputs),
-    B: computeFutureManualScenario(inputs),
+    A: computeCurrentScenario(inputs, machine),
+    B: computeFutureManualScenario(inputs, machine),
     C: computeFutureIsitecScenario(inputs, machine),
   };
+  // Investissement : saisie prioritaire, sinon prix catalogue ; inconnu si « sur devis » et non saisi
+  const unitCapex = inputs.machineCapex ?? machine.capex;
   const roi = computeRoi({
     annualCostManual: scenarios.B.totals.annualCost,
     annualCostIsitec: scenarios.C.totals.annualCost,
     perDayManual: scenarios.B.totals.perDay,
     perDayIsitec: scenarios.C.totals.perDay,
-    capex: machine.capex * quantity,
+    capex: sanitize(unitCapex) * quantity,
     opexYear: machine.opexYear * quantity,
     horizonYears: inputs.staffing.horizonYears,
+    priceKnown: unitCapex !== null,
   });
   const capacity = computeCapacity(inputs, machine, quantity);
   const alerts = computeAlerts(inputs, scenarios, capacity, machine);

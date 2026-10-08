@@ -33,6 +33,7 @@ function hydrate(stored: SimulationInputs | null): SimulationInputs {
     },
     machineId: findMachine(stored.machineId ?? d.machineId).id,
     machineQuantity: stored.machineQuantity ?? d.machineQuantity,
+    machineCapex: stored.machineCapex ?? null,
   };
 }
 

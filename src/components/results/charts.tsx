@@ -21,7 +21,7 @@ import { useFormatters } from '../ui';
 /** Couleurs des scénarios : A = référence atténuée, B = manuel (ambre), C = ISITEC (accent). */
 export function useScenarioColors() {
   return useMemo(() => {
-    let accent = '0 92 169';
+    let accent = '21 26 106';
     if (typeof window !== 'undefined') {
       const v = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();
       if (v) accent = v;
