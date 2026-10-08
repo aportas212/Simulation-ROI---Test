@@ -9,7 +9,7 @@ import { Alerts } from './components/Alerts';
 import { LivePreview } from './components/LivePreview';
 import { LeadsModal, SavedSimulationsModal } from './components/SavedPanel';
 import { Stepper } from './components/Stepper';
-import { Logo } from './components/ui';
+import { Logo, Modal } from './components/ui';
 import { StepFlows } from './components/form/StepFlows';
 import { StepMachine } from './components/form/StepMachine';
 import { StepStaffing } from './components/form/StepStaffing';
@@ -41,7 +41,7 @@ export default function App() {
   const [inputs, setInputs] = useState<SimulationInputs>(() => hydrate(loadDraft()));
   const [step, setStep] = useState(0);
   const [view, setView] = useState<'form' | 'results'>('form');
-  const [modal, setModal] = useState<'saved' | 'leads' | null>(null);
+  const [modal, setModal] = useState<'saved' | 'leads' | 'confirmNew' | null>(null);
   const [leadCount, setLeadCount] = useState(() => listLeads().length);
 
   useEffect(() => saveDraft(inputs), [inputs]);
@@ -60,7 +60,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-white">
-      <header className="no-print sticky top-0 z-40 border-b border-slate-200 bg-white/95 backdrop-blur">
+      <header className="no-print sticky top-[env(safe-area-inset-top,0px)] z-40 border-b border-slate-200 bg-white/95 backdrop-blur">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
           <div className="flex min-w-0 items-center gap-4">
             <Logo />
@@ -78,13 +78,7 @@ export default function App() {
             <button className="btn-ghost" onClick={() => setModal('saved')}>{t('app.saved')}</button>
             <button
               className="btn-secondary"
-              onClick={() => {
-                if (window.confirm(t('app.confirmNew'))) {
-                  setInputs(createDefaultInputs());
-                  setStep(0);
-                  setView('form');
-                }
-              }}
+              onClick={() => setModal('confirmNew')}
             >
               {t('app.new')}
             </button>
@@ -149,6 +143,25 @@ export default function App() {
         />
       )}
       {modal === 'leads' && <LeadsModal onClose={() => setModal(null)} />}
+      {modal === 'confirmNew' && (
+        <Modal title={t('app.new')} onClose={() => setModal(null)}>
+          <p className="text-slate-700">{t('app.confirmNew')}</p>
+          <div className="mt-6 flex justify-end gap-2">
+            <button className="btn-ghost" onClick={() => setModal(null)}>{t('lead.cancel')}</button>
+            <button
+              className="btn-primary"
+              onClick={() => {
+                setInputs(createDefaultInputs());
+                setStep(0);
+                setView('form');
+                setModal(null);
+              }}
+            >
+              {t('app.new')}
+            </button>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }
