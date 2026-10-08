@@ -1,0 +1,114 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * Couleur d'accent paramétrable : modifiez ces triplets RGB pour changer la couleur de marque.
+ * --accent       : couleur principale (boutons, chiffres clés, scénario ISITEC)
+ * --accent-dark  : survol / texte sur fond clair
+ * --accent-soft  : fonds légers
+ */
+:root {
+  --accent: 0 92 169;
+  --accent-dark: 0 68 128;
+  --accent-soft: 232 241 250;
+}
+
+html,
+body {
+  background: #ffffff;
+  color: #0f172a;
+  -webkit-font-smoothing: antialiased;
+}
+
+@layer components {
+  .card {
+    @apply rounded-xl border border-slate-200 bg-white;
+  }
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/40 disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  .btn-primary {
+    @apply btn bg-accent text-white hover:bg-accent-dark;
+  }
+  .btn-secondary {
+    @apply btn border border-slate-300 bg-white text-slate-800 hover:border-slate-400 hover:bg-slate-50;
+  }
+  .btn-ghost {
+    @apply btn text-slate-600 hover:bg-slate-100 hover:text-slate-900;
+  }
+  .input {
+    @apply w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-base text-slate-900 tabular-nums shadow-sm transition-colors placeholder:text-slate-400 focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20;
+  }
+  .label {
+    @apply mb-1.5 block text-sm font-medium text-slate-700;
+  }
+  .eyebrow {
+    @apply text-xs font-semibold uppercase tracking-wider text-slate-500;
+  }
+}
+
+/* Graphiques : les SVG s'adaptent à la largeur disponible (utile à l'impression). */
+.recharts-surface {
+  overflow: visible;
+}
+
+/* ---------- Impression / export PDF A4 ---------- */
+.print-only {
+  display: none;
+}
+
+@page {
+  size: A4;
+  margin: 12mm 12mm 14mm;
+}
+
+@media print {
+  html,
+  body {
+    background: #fff !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    font-size: 11px;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .print-only {
+    display: block !important;
+  }
+  .print-root {
+    width: 186mm !important;
+    max-width: 186mm !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+  .avoid-break {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  .page-break {
+    break-before: page;
+    page-break-before: always;
+  }
+  .card {
+    box-shadow: none !important;
+  }
+  /* Les graphiques sont rendus à la taille écran : on les met à l'échelle dans leur cadre
+     (le viewBox SVG conserve les proportions). */
+  .chart-box {
+    height: 190px !important;
+  }
+  .recharts-responsive-container,
+  .recharts-wrapper {
+    width: 100% !important;
+    height: 100% !important;
+  }
+  .recharts-wrapper > svg {
+    width: 100% !important;
+    height: 100% !important;
+  }
+  .recharts-tooltip-wrapper {
+    display: none !important;
+  }
+}
